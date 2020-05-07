@@ -6,7 +6,7 @@
 #include <iostream>
 
 using namespace std;
-class ThucSolve {
+class SolverTemplate {
    public:
     /**
      * Read input 
@@ -134,7 +134,8 @@ class Checker {
             tankX = nxtX;
             tankY = nxtY;
             if (grid[tankX][tankY] == 2)
-                cntStar += 1;
+                cntStar += 1,
+                grid[tankX][tankY] = 0;
             if (grid[tankX][tankY] == 3)
                 currentGas = gasMax;
         }
@@ -143,18 +144,15 @@ class Checker {
 #undef MAXN
 };
 int main() {
-    ThucSolve sol1;
-    sol1.readInput("sample.inp");
-    sol1.writeOutput("sample.out");
-    Checker checker;
-    string comment;
-    pair<int, int> result = checker.verifyOutput("fossil-summer-coding/test/sampleInput.txt", "fossil-summer-coding/test/sampleOutput.txt", comment);
-    if (result.first == -1) {
-        cout << comment;
-    } else {
-        cout << "Correct answer\n";
-        cout << "Number of stars: " << result.first << '\n';
-        cout << "Path's length: " << result.second << '\n';
-    }
+    // Checker checker;
+    // string comment;
+    // pair<int, int> result = checker.verifyOutput("fossil-summer-coding/test/sampleInput.txt", "fossil-summer-coding/test/sampleOutput.txt", comment);
+    // if (result.first == -1) {
+    //     cout << comment;
+    // } else {
+    //     cout << "Correct answer\n";
+    //     cout << "Number of stars: " << result.first << '\n';
+    //     cout << "Path's length: " << result.second << '\n';
+    // }
     return 0;
 }
