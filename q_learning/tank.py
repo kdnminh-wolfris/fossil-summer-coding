@@ -21,15 +21,15 @@ dimX, dimY = map(int, f.readline().split())
 for _ in range(dimX):
 	init_grid.append(f.readline().split())
 
-TOTAL_EPISODES = 25000
+TOTAL_EPISODES = 50000
 MOVE_PENALTY = -1
 WALL_PENALTY = -1000
 OUT_OF_FUEL_PENALTY = -1000
 STAR_REWARD = 50
 FUEL_REWARD = 50
-epsilon = 0.0
+epsilon = 1.0
 EPS_DECAY = 0.9998
-DISPLAY_EVERY = 1
+DISPLAY_EVERY = 1000
 INF = dimX * dimY + 5
 TOTAL_STARS = 0
 FUEL_CAP = fuel
