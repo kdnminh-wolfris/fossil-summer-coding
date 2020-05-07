@@ -16,23 +16,26 @@ move_x = [-1, 0, 1, 0]
 move_y = [0, -1, 0, 1]
 
 startX, startY = map(int, f.readline().split())
+startX -= 1
+startY -= 1
 fuel = int(f.readline())
 dimX, dimY = map(int, f.readline().split())
 for _ in range(dimX):
 	init_grid.append(f.readline().split())
 
-TOTAL_EPISODES = 50000
+TOTAL_EPISODES = 25000
 MOVE_PENALTY = -1
 WALL_PENALTY = -1000
 OUT_OF_FUEL_PENALTY = -1000
 STAR_REWARD = 50
-FUEL_REWARD = 50
-epsilon = 1.0
+FUEL_REWARD = 5
+epsilon = 0.9
 EPS_DECAY = 0.9998
 DISPLAY_EVERY = 1000
 INF = dimX * dimY + 5
 TOTAL_STARS = 0
 FUEL_CAP = fuel
+BUCKET = 5
 tankX, tankY = startX, startY
 
 for i in range(dimX):
@@ -42,18 +45,22 @@ for i in range(dimX):
 LEARNING_RATE = 0.1
 DISCOUNT = 0.95
 
-LOAD_EXISTING_QTABLE = "qtable-1588821416.pickle" #Load pre-trained Q-learning table, NONE or "filename"
+LOAD_EXISTING_QTABLE = "qtable-1588867081.pickle" #Load pre-trained Q-learning table, NONE or "filename"
 
 if LOAD_EXISTING_QTABLE is None:
 	q_table = {}
-	for i in range(fuel + 5):
-		for j in range(fuel + 5):
-			for k in range(fuel + 5):
-				for p in range(-1, fuel + 5):
-					q_table[(i, j, k, p)] = [np.random.uniform(-5, 0) for i in range(4)]
+	for i in range(-dimX//BUCKET-1, dimX//BUCKET+1):
+		for j in range(-dimX//BUCKET-1, dimX//BUCKET+1):
+			for k in range(-dimX//BUCKET-1, dimX//BUCKET+1):
+				for p in range(-dimX//BUCKET-1, dimX//BUCKET+1):
+					for f in range(fuel//BUCKET + 1):
+						# print(i, j, k, p, f)
+						q_table[((i, j), (k, p), f)] = [np.random.uniform(-5, 0) for i in range(4)]
 else:
 	with open(LOAD_EXISTING_QTABLE, "rb") as f:
 		q_table = pickle.load(f)
+
+print("Finish initializing...")
 
 def move(action):
 	global tankX, tankY, fuel
@@ -68,41 +75,45 @@ def move(action):
 	tankY = max(min(tankY, dimY - 1), 0)
 	return stupid_move
 
+def relativeDist(x1, y1, x2, y2):
+	return ((x1 - x2) // BUCKET, (y1 - y2) // BUCKET), abs(x1 - x2) + abs(y1 - y2)
+
 def getState(grid):
-	nearest_wall_dist = INF
-	nearest_wall_dist = min(nearest_wall_dist, tankX)
-	nearest_wall_dist = min(nearest_wall_dist, dimX - tankX)
-	nearest_wall_dist = min(nearest_wall_dist, tankY)
-	nearest_wall_dist = min(nearest_wall_dist, dimY - tankY)
-	nearest_gas_dist = INF
-	nearest_star_dist = INF
-	for i in range(dimX):
-		for j in range(dimY):
-			if (i, j) == (tankX, tankY):
-				continue
-			elif grid[i][j] == '0':
-				nearest_wall_dist = min(nearest_wall_dist, abs(i - tankX) + abs(j - tankY))
-			elif grid[i][j] == '2':
-				nearest_gas_dist = min(nearest_gas_dist, abs(i - tankX) + abs(j - tankY))
-			elif grid[i][j] == '3':
-				nearest_star_dist = min(nearest_star_dist, abs(i - tankX) + abs(j - tankY))
-
-	return (nearest_wall_dist, nearest_gas_dist, nearest_star_dist, fuel)
-
+	dist_wall = INF 
+	dist_gas_or_star = INF
+	relative_to_wall = (0, 0)
+	relative_to_gas_or_star = (0, 0)
+	for i in range(-1, dimX + 1):
+		for j in range(-1, dimY + 1):
+			relative_dist, d = relativeDist(i, j, tankX, tankY)
+			if ((i == -1 or i == dimX) and (j == -1 or j == dimY)) or grid[tankX][tankY] == '0':
+				if d < dist_wall:
+					dist_wall = d
+					relative_to_wall = relative_dist
+			elif grid[tankX][tankY] == '2' or grid[tankX][tankY] == '3':
+				if d < dist_gas_or_star:
+					dist_gas_or_star = d
+					relative_to_gas_or_star = relative_dist
+	return relative_to_wall, relative_to_gas_or_star, fuel // BUCKET
 
 episode_rewards = []
-
+RANDOM_START = True
 for episode in range(TOTAL_EPISODES):
 	grid = copy.deepcopy(init_grid)
 	fuel = FUEL_CAP
 	stars = TOTAL_STARS
-
-	while True:
-		tankX = np.random.randint(0, dimX)
-		tankY = np.random.randint(0, dimY)
-		if grid[tankX][tankY] == '1':
-			break
 	display = False
+
+	if RANDOM_START:
+		while True:
+			tankX = np.random.randint(0, dimX)
+			tankY = np.random.randint(0, dimY)
+			if grid[tankX][tankY] == '1':
+				break
+	else:
+		tankX = startX
+		tankY = startY
+
 	if episode % DISPLAY_EVERY == 0:
 		print(f"On {episode}, epsilon: {epsilon}")
 		print(f"{DISPLAY_EVERY} epsilon mean: {np.mean(episode_rewards[-DISPLAY_EVERY:])}")
@@ -118,6 +129,7 @@ for episode in range(TOTAL_EPISODES):
 			action = np.random.randint(0, 4)
 
 		bad = move(action)
+		bad = False
 
 		if bad:
 			reward = WALL_PENALTY
