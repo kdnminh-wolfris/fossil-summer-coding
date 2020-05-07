@@ -1,6 +1,6 @@
 # Map visualizer using OpenCV
 # Usage:
-#	py visualizer.py <FILE_NAME>
+# 	$ py visualizer.py <FILE_NAME>
 
 import numpy as np
 import sys
