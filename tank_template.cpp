@@ -1,11 +1,20 @@
 #include <stdarg.h>  // For va_start, etc.
 #include <string.h>
-#include <memory>  // For std::unique_ptr
-
+#include <queue>
+#include <vector>
+#include <utility>
+#include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <memory>  // For std::unique_ptr
 
 using namespace std;
+
+#define WALL 0
+#define STREET 1
+#define GAS 2
+#define STAR 3
+
 class SolverTemplate {
    public:
     /**
@@ -41,7 +50,7 @@ class SolverTemplate {
 };
 
 class Checker {
-#define MAXN 2005
+#define MAXN 1005
    private:
     int grid[MAXN][MAXN];
     int nRow, nCol, tankX, tankY, gasMax;
@@ -124,19 +133,19 @@ class Checker {
             verify(abs(tankX - nxtX) + abs(tankY - nxtY) == 1,
                    string_format("Move %d ((%d, %d) -> (%d, %d)) is invalid, expected manhattan's distance is 1, found %d",
                                  len, tankX, tankY, nxtX, nxtY, abs(tankX - nxtX) + abs(tankY - nxtY)));
-            verify(grid[nxtX][nxtY] != 0,
+            verify(grid[nxtX][nxtY] != WALL,
                    string_format("Move %d ((%d, %d) -> (%d, %d)) is invalid, tank move into a forbiden cell",
                                  len, tankX, tankY, nxtX, nxtY));
-            verify(currentGas != 0, 
-                string_format("Move %d ((%d, %d) -> (%d, %d)) is invalid, ran out of gas",
-                len, tankX, tankY, nxtX, nxtY));
+            verify(currentGas != 0,
+                   string_format("Move %d ((%d, %d) -> (%d, %d)) is invalid, ran out of gas",
+                                 len, tankX, tankY, nxtX, nxtY));
             --currentGas;
             tankX = nxtX;
             tankY = nxtY;
-            if (grid[tankX][tankY] == 2)
+            if (grid[tankX][tankY] == STAR)
                 cntStar += 1,
-                grid[tankX][tankY] = 0;
-            if (grid[tankX][tankY] == 3)
+                grid[tankX][tankY] = STREET;
+            if (grid[tankX][tankY] == GAS)
                 currentGas = gasMax;
         }
         return {cntStar, len};
