@@ -1,4 +1,5 @@
 *.json
 *.exe
+test/testing.txt
 *.pickle
 .vscode/*
