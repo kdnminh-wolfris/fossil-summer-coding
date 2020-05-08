@@ -16,7 +16,7 @@ class Khau {
 	ifstream fi;
 	ofstream fo;
 
-	const int debug = 1;
+	const int debug = 0;
 
 	public:
         void resize(int _m, int _n) {
@@ -68,7 +68,7 @@ class Khau {
             const int inf = 1e9;
             const int dirX[4] = {-1, 0, 1, 0};
             const int dirY[4] = {0, 1, 0, -1};
-            const int radius = 30;
+            const int radius = 30; /// only stars within this radius (Mahattan) from starting point will be collected
 
             vector <pair <int, int>> star = star_list();
             vector <vector <int>> star_id;
@@ -91,22 +91,36 @@ class Khau {
 
             dp.resize(size_m, vector <vector <vector <int>>> (size_n, vector <vector <int>> (max_gas_unit + 1, vector <int> (1 << nStar, inf))));
 
-            priority_queue <pair <int, pair <pair <int, int>, pair <int, int>>>> heap;
-            heap.push({0, {{init_x, init_y}, {max_gas_unit, 0}}});
+            priority_queue <pair <int, pair <pair <pair <int, int>, pair <int, int>>, pair <pair <int, int>, pair <int, int>>>>> heap;
+            heap.push({0, {{{init_x, init_y}, {max_gas_unit, 0}}, {{-1, -1}, {-1, -1}}}});
+
+            vector <vector <vector <vector <int>>>> traceX;
+            traceX.resize(size_m, vector <vector <vector <int>>> (size_n, vector <vector <int>> (max_gas_unit + 1, vector <int> (1 << nStar))));
+            vector <vector <vector <vector <int>>>> traceY;
+            traceY.resize(size_m, vector <vector <vector <int>>> (size_n, vector <vector <int>> (max_gas_unit + 1, vector <int> (1 << nStar))));
+            vector <vector <vector <vector <int>>>> traceG;
+            traceG.resize(size_m, vector <vector <vector <int>>> (size_n, vector <vector <int>> (max_gas_unit + 1, vector <int> (1 << nStar))));
+            vector <vector <vector <vector <int>>>> traceM;
+            traceM.resize(size_m, vector <vector <vector <int>>> (size_n, vector <vector <int>> (max_gas_unit + 1, vector <int> (1 << nStar))));
 
             int ansX = init_x, ansY = init_y, ansG = max_gas_unit, ansM = 0;
 
             if (debug) cout << "Dijkstra..." << endl;
 
-            for (int x, y, g, m, d; !heap.empty(); heap.pop()) {
+            for (int d, x, y, g, m; !heap.empty(); heap.pop()) {
                 d = -heap.top().first;
-                x = heap.top().second.first.first;
-                y = heap.top().second.first.second;
-                g = heap.top().second.second.first;
-                m = heap.top().second.second.second;
+                x = heap.top().second.first.first.first;
+                y = heap.top().second.first.first.second;
+                g = heap.top().second.first.second.first;
+                m = heap.top().second.first.second.second;
 
                 if (dp[x][y][g][m] <= d) continue;
                 dp[x][y][g][m] = d;
+
+                traceX[x][y][g][m] = heap.top().second.second.first.first;
+                traceY[x][y][g][m] = heap.top().second.second.first.second;
+                traceG[x][y][g][m] = heap.top().second.second.second.first;
+                traceM[x][y][g][m] = heap.top().second.second.second.second;
 
                 //cout << '[' << x << ',' << y << ',' << g << ',' << m << ']' << '=' << d << endl;
 
@@ -129,7 +143,7 @@ class Khau {
                     else mm = m;
 
                     if (dp[xx][yy][gg][mm] == inf)
-                        heap.push({-d - 1, {{xx, yy}, {gg, mm}}});
+                        heap.push({-d - 1, {{{xx, yy}, {gg, mm}}, heap.top().second.first}});
                 }
             }
 
@@ -138,47 +152,15 @@ class Khau {
             if (debug) cout << "Tracing... " << dp[ansX][ansY][ansG][ansM] << " steps" << endl;
 
             vector <pair <int, int>> ret;
-            while (true) {
-                cout << ansX << ' ' << ansY << ' ' << ansG << ' ' << ansM << ' ' << data[ansX][ansY] << endl;
-
+            while (ansX != -1) {
+                //cout << ansX << ' ' << ansY << ' ' << ansG << ' ' << ansM << ' ' << data[ansX][ansY] << endl;
                 ret.push_back({ansX, ansY});
-                if (ansX == init_x && ansY == init_y && ansG == max_gas_unit && ansM == 0)
-                    break;
-
-                for (int x, y, g, m, i = 0; i < 4; ++i) {
-                    x = ansX + dirX[i];
-                    y = ansY + dirY[i];
-                    if (0 > x || x >= size_m || 0 > y || y >= size_n)
-                        continue;
-
-                    if (data[ansX][ansY] == 2) {
-                        for (g = 1; g <= max_gas_unit; ++g)
-                            if (dp[x][y][g][ansM] + 1 == dp[ansX][ansY][ansG][ansM])
-                                break;
-                    }
-                    else if (dp[x][y][ansG + 1][ansM] + 1 == dp[ansX][ansY][ansG][ansM])
-                        g = ansG + 1;
-                    else g = max_gas_unit + 1;
-
-                    if (g > max_gas_unit) continue;
-
-                    if (data[ansX][ansY] == 3) {
-                        m = -1;
-                        if (dp[x][y][g][ansM] + 1 == dp[ansX][ansY][ansG][ansM])
-                            m = ansM;
-                        else {
-                            m = ansM ^ (1 << star_id[ansX][ansY]);
-                            if (dp[x][y][g][m] + 1 != dp[ansX][ansY][ansG][ansM])
-                                m = -1;
-                        }
-                    }
-                    else m = ansM;
-
-                    if (m == -1) continue;
-
-                    ansX = x; ansY = y; ansG = g; ansM = m;
-                    break;
-                }
+                int tmpX, tmpY, tmpG, tmpM;
+                tmpX = traceX[ansX][ansY][ansG][ansM];
+                tmpY = traceY[ansX][ansY][ansG][ansM];
+                tmpG = traceG[ansX][ansY][ansG][ansM];
+                tmpM = traceM[ansX][ansY][ansG][ansM];
+                ansX = tmpX; ansY = tmpY; ansG = tmpG; ansM = tmpM;
             }
 
             if (debug) cout << "Done tracing." << endl;
@@ -196,7 +178,7 @@ class Khau {
         void writeOutput(string outPath) {
             fo.open(outPath);
             vector <pair <int, int>> res = dijkstra();
-            for (auto p: res) fo << p.first << ' ' << p.second << '\n';
+            for (auto p: res) fo << p.first + 1 << ' ' << p.second + 1 << '\n';
             fo.close();
         }
 };
