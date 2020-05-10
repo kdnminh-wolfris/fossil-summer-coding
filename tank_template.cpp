@@ -451,9 +451,11 @@ class Checker {
         int cntStar = 0;
         int currentGas = gasMax;
         int cntMapStar = 0;
+        int cntGasStation = 0;
         for (int i = 1; i <= nRow; ++i)
             for (int j = 1; j <= nCol; ++j)
-                cntMapStar += (grid[i][j] == STAR);
+                cntMapStar += (grid[i][j] == STAR), 
+                cntGasStation += (grid[i][j] == GAS);
         while (out >> nxtX >> nxtY) {
             ++len;
             verify(0 < nxtX && nxtX <= nRow,
@@ -480,7 +482,8 @@ class Checker {
             if (grid[tankX][tankY] == GAS)
                 currentGas = gasMax;
         }
-        comment = string_format("Map has %d stars", cntMapStar);
+        comment = string_format("Map has %d stars\n", cntMapStar);
+        comment += string_format("Map has %d gas stations", cntGasStation);
         return {cntStar, len};
     }
 #undef MAXN
