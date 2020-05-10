@@ -51,7 +51,7 @@ class SolverTemplate {
 };
 
 class ThucSolver {
-#define MAXN 100
+#define MAXN 1000
 #define PATH_LIMIT 1000000
    private:
     
@@ -73,7 +73,7 @@ class ThucSolver {
     struct TNode {
         pair<int, int> star, gas; //closest star and closest gas
     } st[MAXN * MAXN << 2];
-    int lz[MAXN * MAXN];
+    int lz[MAXN * MAXN << 2];
 #undef MAXN
 #define mid ((l + r) >> 1)
 #define lc (id << 1)
