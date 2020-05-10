@@ -41,20 +41,6 @@ class Khau {
         --init_x; --init_y;
     }
 
-    void display() {
-        for (int i = 0; i < size_m; ++i)
-            for (int j = 0; j < size_n; ++j)
-                cout << data[i][j] << " \n"[j == size_n - 1];
-    }
-
-    int star_count() {
-        int ret = 0;
-        for (int i = 0; i < size_m; ++i)
-            for (int j = 0; j < size_n; ++j)
-                if (data[i][j] == 3) ++ret;
-        return ret;
-    }
-
     vector <pair <int, int>> star_list() {
         if (debug) cout << "Getting star list..." << endl;
 
@@ -73,7 +59,7 @@ class Khau {
         const int inf = 1e9;
         const int dirX[4] = {-1, 0, 1, 0};
         const int dirY[4] = {0, 1, 0, -1};
-        const int radius = 30; /// only stars within this radius (Mahattan) from starting point will be collected
+        const int radius = 40; /// only stars within this radius (Mahattan) from starting point will be collected
 
         vector <pair <int, int>> star = star_list();
         vector <vector <int>> star_id;
@@ -174,11 +160,252 @@ class Khau {
         return ret;
     }
 
+    /**
+    mode =
+    0: nearest available star, otherwise, gas station (available means from that star we can go back to a gas station to refill)
+    1: nearest reachable star
+    2: nearest reachable gas station
+    */
+    bool bfs(int startX, int startY, int startG, vector <pair <int, int>> &path, int mode) {
+        const int dirX[4] = {-1, 0, 1, 0};
+        const int dirY[4] = {0, 1, 0, -1};
+
+        vector <vector <int>> d;
+        d.resize(size_n, vector <int> (size_m, -1));
+
+        queue <pair <int, int>> q;
+
+        q.push({startX, startY}); d[startX][startY] = 0;
+
+        vector <vector <pair <int, int>>> trace;
+        trace.resize(size_m, vector <pair <int, int>> (size_n));
+
+        int gasX, gasY;
+        int resX = -1, resY;
+
+        while (!q.empty()) {
+            int curX = q.front().first;
+            int curY = q.front().second;
+            q.pop();
+
+            if (data[curX][curY] == 3 && mode < 2)
+                if (mode == 1 || bfs(curX, curY, startG - d[curX][curY], path, 2)) {
+                    resX = curX; resY = curY;
+                    data[curX][curY] = 1;
+                    break;
+                }
+
+            if (data[curX][curY] == 2) {
+                if (mode == 2) {
+                    resX = curX; resY = curY;
+                    break;
+                }
+                gasX = curX; gasY = curY;
+            }
+
+            if (d[curX][curY] == startG) continue;
+
+            for (int x, y, i = 0; i < 4; ++i) {
+                x = curX + dirX[i];
+                y = curY + dirY[i];
+                if (0 > x || x >= size_m || 0 > y || y >= size_n)
+                    continue;
+
+                if (d[x][y] > -1 || data[x][y] == 0)
+                    continue;
+
+                d[x][y] = d[curX][curY] + 1;
+                trace[x][y] = {curX, curY};
+                q.push({x, y});
+            }
+        }
+
+        if (resX == -1) {
+            if (mode) return false;
+            else if (gasX == startX && gasY == startY)
+                return false;
+            else resX = gasX, resY = gasY;
+        }
+
+        path.clear();
+        while (resX != startX || resY != startY) {
+            path.push_back({resX, resY});
+            int traceX = trace[resX][resY].first;
+            int traceY = trace[resX][resY].second;
+            resX = traceX; resY = traceY;
+        }
+        reverse(path.begin(), path.end());
+        return true;
+    }
+
+    vector <pair <int, int>> sol2() {
+        vector <vector <int>> tmpMap = data;
+
+        vector <pair <int, int>> res, cur;
+
+        res.push_back({init_x, init_y});
+
+        int curX = init_x, curY = init_y, curG = max_gas_unit;
+
+        vector <vector <bool>> visited;
+        visited.resize(size_m, vector <bool> (size_n, false));
+
+        if (debug) cout << "Strategy 2: Solving..." << endl;
+
+        for (int mode = 0; mode <= 1; ++mode) {
+            if (debug) cout << "Mode " << mode << ": Solving..." << endl;
+
+            while (bfs(curX, curY, curG, cur, mode)) {
+                int tmpX = cur[cur.size() - 1].first;
+                int tmpY = cur[cur.size() - 1].second;
+
+                if (visited[tmpX][tmpY]) break;
+                visited[tmpX][tmpY] = true;
+
+                curX = tmpX; curY = tmpY;
+
+                for (auto element: cur) res.push_back(element);
+
+                if (data[curX][curY] == 2)
+                    curG = max_gas_unit;
+                else curG -= cur.size();
+            }
+        }
+
+        data = tmpMap;
+        return res;
+    }
+
+    bool _bfs(int startX, int startY, int startG, vector <pair <int, int>> &path, int mode) {
+        const int dirX[4] = {-1, 0, 1, 0};
+        const int dirY[4] = {0, 1, 0, -1};
+
+        vector <vector <int>> d;
+        d.resize(size_n, vector <int> (size_m, -1));
+
+        queue <pair <int, int>> q;
+
+        q.push({startX, startY}); d[startX][startY] = 0;
+
+        vector <vector <pair <int, int>>> trace;
+        trace.resize(size_m, vector <pair <int, int>> (size_n));
+
+        int gasX, gasY;
+        int resX = -1, resY;
+
+        while (!q.empty()) {
+            int curX = q.front().first;
+            int curY = q.front().second;
+            q.pop();
+
+            if (data[curX][curY] == 3 && mode < 2)
+                if (mode == 1 || _bfs(curX, curY, startG - d[curX][curY], path, 2)) {
+                    resX = curX; resY = curY;
+                    data[curX][curY] = 1;
+                    break;
+                }
+
+            if (data[curX][curY] == 2) {
+                if (mode == 2) {
+                    resX = curX; resY = curY;
+                    break;
+                }
+                gasX = curX; gasY = curY;
+            }
+
+            if (d[curX][curY] == startG) continue;
+
+            for (int x, y, i = 0; i < 4; ++i) {
+                x = curX + dirX[i];
+                y = curY + dirY[i];
+                if (0 > x || x >= size_m || 0 > y || y >= size_n)
+                    continue;
+
+                if (d[x][y] > -1 || data[x][y] == 0)
+                    continue;
+
+                d[x][y] = d[curX][curY] + 1;
+                trace[x][y] = {curX, curY};
+                q.push({x, y});
+            }
+        }
+
+        if (resX == -1) {
+            if (mode) return false;
+            else if (gasX == startX && gasY == startY)
+                return false;
+            else resX = gasX, resY = gasY;
+        }
+
+        path.clear();
+        while (resX != startX || resY != startY) {
+            path.push_back({resX, resY});
+            int traceX = trace[resX][resY].first;
+            int traceY = trace[resX][resY].second;
+            resX = traceX; resY = traceY;
+        }
+        reverse(path.begin(), path.end());
+        return true;
+    }
+
+    /// literally sol2 but with some heuristic function
+    vector <pair <int, int>> sol3() {
+        vector <vector <int>> tmpMap = data;
+
+        vector <pair <int, int>> res, cur;
+
+        res.push_back({init_x, init_y});
+
+        int curX = init_x, curY = init_y, curG = max_gas_unit;
+
+        vector <vector <bool>> visited;
+        visited.resize(size_m, vector <bool> (size_n, false));
+
+        if (debug) cout << "Strategy 2: Solving..." << endl;
+
+        for (int mode = 0; mode <= 1; ++mode) {
+            if (debug) cout << "Mode " << mode << ": Solving..." << endl;
+
+            while (_bfs(curX, curY, curG, cur, mode)) {
+                int tmpX = cur[cur.size() - 1].first;
+                int tmpY = cur[cur.size() - 1].second;
+
+                if (visited[tmpX][tmpY]) break;
+                visited[tmpX][tmpY] = true;
+
+                curX = tmpX; curY = tmpY;
+
+                for (auto element: cur) res.push_back(element);
+
+                if (data[curX][curY] == 2)
+                    curG = max_gas_unit;
+                else curG -= cur.size();
+            }
+        }
+
+        data = tmpMap;
+        return res;
+    }
+
 	public:
         ifstream fi;
         ofstream fo;
 
         int debug = 0;
+
+        void display() {
+            for (int i = 0; i < size_m; ++i)
+                for (int j = 0; j < size_n; ++j)
+                    cout << data[i][j] << " \n"[j == size_n - 1];
+        }
+
+        int star_count() {
+            int ret = 0;
+            for (int i = 0; i < size_m; ++i)
+                for (int j = 0; j < size_n; ++j)
+                    ret += data[i][j] == 3;
+            return ret;
+        }
 
         void readInput(string inPath) {
             fi.open(inPath);
@@ -188,7 +415,7 @@ class Khau {
 
         void writeOutput(string outPath) {
             fo.open(outPath);
-            vector <pair <int, int>> res = dijkstra();
+            vector <pair <int, int>> res = sol2();
             for (int i = 1; i < res.size(); ++i)
                 fo << res[i].first + 1 << ' ' << res[i].second + 1 << '\n';
             fo.close();
@@ -196,7 +423,7 @@ class Khau {
 };
 
 class Checker {
-#define MAXN 55
+#define MAXN 1005
    private:
     int grid[MAXN][MAXN];
     int nRow, nCol, tankX, tankY, gasMax;
@@ -305,17 +532,21 @@ class Checker {
 };
 
 int main() {
+    string inPath = "square1000.txt";
+    string outPath = "path.txt";
+
     Khau sol;
-    sol.readInput("map.txt");
-    sol.writeOutput("path.txt");
+    sol.debug = 1;
+    sol.readInput(inPath);
+    sol.writeOutput(outPath);
 
     Checker check;
     string cmt;
-    pair <int, int> ans = check.verifyOutput("map.txt", "path.txt", cmt);
+    pair <int, int> ans = check.verifyOutput(inPath, outPath, cmt);
     if (ans.first == -1)
         cout << cmt;
     else {
-        cout << "Stars collected: " << ans.first << '\n';
+        cout << "Stars collected: " << ans.first << "/" << sol.star_count() << '\n';
         cout << "Path length: " << ans.second;
     }
 }
