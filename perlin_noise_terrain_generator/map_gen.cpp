@@ -27,12 +27,12 @@
 void generateMap(int height, int width, std::string fileName) {
 	#define FREQUENCY 2.0       // Frequency of those black islands
 	#define Z_NOISE 0.8         // Put whatever you want :)
-	#define SMOOTHNESS 10.0     // The smaller smoothness, the bigger chunk of walls
+	#define SMOOTHNESS 20.0     // The smaller smoothness, the bigger chunk of walls
 
 	std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
 	std::ofstream file(fileName);
 	std::vector<std::vector<double>> elevation(height, std::vector<double>(width));
-	std::vector<std::vector<int>> finalMap(height, std::vector<int>(width));
+	std::vector<std::vector<int>> finalMap(height, std::vector<int>(width, 1));
 	std::vector<double> elevation_list;
 	PerlinNoise pn(rng() % 333);
 
@@ -47,7 +47,7 @@ void generateMap(int height, int width, std::string fileName) {
 
 	std::sort(elevation_list.begin(), elevation_list.end());
 
-	double threshold = elevation_list[2 * (int)elevation_list.size() / 3];
+	double threshold = elevation_list[3 * (int)elevation_list.size() / 5];
 	for (int x = 0; x < height; ++x) { // normalization
 		for (int y = 0; y < width; ++y) {
 			finalMap[x][y] = (elevation[x][y] >= threshold) ? 0 : 1;
@@ -83,7 +83,8 @@ void generateMap(int height, int width, std::string fileName) {
 		}
 	}
 
-	int fuelCap = rng() % (height + width);
+	// int fuelCap = rng() % (height + width);
+	int fuelCap = height * width;
 
 	file << startX << ' ' << startY << std::endl;
 	file << fuelCap << std::endl;

@@ -20,6 +20,8 @@ dimX, dimY = map(int, f.readline().split())
 for _ in range(dimX):
 	grid.append(f.readline().split())
 
+grid[startX][startY] = '4'
+
 env = np.zeros((dimX, dimY, 3), dtype=np.uint8)
 for i in range(dimX):
 	for j in range(dimY):

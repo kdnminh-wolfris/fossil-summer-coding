@@ -8,7 +8,7 @@ import time
 import copy
 
 style.use("ggplot")
-f = open("sampleInput.txt", "r")
+f = open("map_100_100.txt", "r")
 init_grid = []
 TANK_ID = 4
 color_map = {0: (0, 0, 0), 1: (255, 255, 255), 2: (0, 255, 0), 3: (0, 0, 255), 4: (255, 0, 0)}
@@ -23,14 +23,19 @@ dimX, dimY = map(int, f.readline().split())
 for _ in range(dimX):
 	init_grid.append(f.readline().split())
 
-TOTAL_EPISODES = 25000
+TOTAL_EPISODES = 20000
 MOVE_PENALTY = -1
 WALL_PENALTY = -1000
 OUT_OF_FUEL_PENALTY = -1000
 STAR_REWARD = 50
-FUEL_REWARD = 5
-epsilon = 0.9
-EPS_DECAY = 0.9998
+FUEL_REWARD = 50
+
+epsilon = 1
+START_EPSILON_DECAYING = 1
+END_EPSILON_DECAYING = TOTAL_EPISODES//2
+epsilon_decay_value = epsilon/(END_EPSILON_DECAYING - START_EPSILON_DECAYING)
+EPS_DECAY = 0.99975
+
 DISPLAY_EVERY = 1000
 INF = dimX * dimY + 5
 TOTAL_STARS = 0
@@ -45,17 +50,14 @@ for i in range(dimX):
 LEARNING_RATE = 0.1
 DISCOUNT = 0.95
 
-LOAD_EXISTING_QTABLE = "qtable-1588867081.pickle" #Load pre-trained Q-learning table, NONE or "filename"
+LOAD_EXISTING_QTABLE = None #Load pre-trained Q-learning table, NONE or "filename"
 
 if LOAD_EXISTING_QTABLE is None:
 	q_table = {}
-	for i in range(-dimX//BUCKET-1, dimX//BUCKET+1):
-		for j in range(-dimX//BUCKET-1, dimX//BUCKET+1):
-			for k in range(-dimX//BUCKET-1, dimX//BUCKET+1):
-				for p in range(-dimX//BUCKET-1, dimX//BUCKET+1):
-					for f in range(fuel//BUCKET + 1):
-						# print(i, j, k, p, f)
-						q_table[((i, j), (k, p), f)] = [np.random.uniform(-5, 0) for i in range(4)]
+	for mask in range(1<<8):
+		for x in range(-dimX//BUCKET, dimX//BUCKET+1):
+			for y in range(-dimY//BUCKET, dimY//BUCKET+1):
+				q_table[(mask, (x, y))] = [np.random.uniform(-5, 0) for i in range(4)]
 else:
 	with open(LOAD_EXISTING_QTABLE, "rb") as f:
 		q_table = pickle.load(f)
@@ -78,26 +80,36 @@ def move(action):
 def relativeDist(x1, y1, x2, y2):
 	return ((x1 - x2) // BUCKET, (y1 - y2) // BUCKET), abs(x1 - x2) + abs(y1 - y2)
 
+def isWall(x, y):
+	if x<0 or x>=dimX or y<0 or y>=dimY or grid[x][y] == '0':
+		return 1
+	else:
+		return 0
+
 def getState(grid):
-	dist_wall = INF 
+	mask = 0
 	dist_gas_or_star = INF
-	relative_to_wall = (0, 0)
 	relative_to_gas_or_star = (0, 0)
 	for i in range(-1, dimX + 1):
 		for j in range(-1, dimY + 1):
 			relative_dist, d = relativeDist(i, j, tankX, tankY)
-			if ((i == -1 or i == dimX) and (j == -1 or j == dimY)) or grid[tankX][tankY] == '0':
-				if d < dist_wall:
-					dist_wall = d
-					relative_to_wall = relative_dist
-			elif grid[tankX][tankY] == '2' or grid[tankX][tankY] == '3':
+			if grid[tankX][tankY] == '2' or grid[tankX][tankY] == '3':
 				if d < dist_gas_or_star:
 					dist_gas_or_star = d
 					relative_to_gas_or_star = relative_dist
-	return relative_to_wall, relative_to_gas_or_star, fuel // BUCKET
+	mask = mask | isWall(tankX-1, tankY-1)
+	mask = mask | (isWall(tankX, tankY-1) << 1)
+	mask = mask | (isWall(tankX+1, tankY-1) << 2)
+	mask = mask | (isWall(tankX-1, tankY) << 3)
+	mask = mask | (isWall(tankX+1, tankY) << 4)
+	mask = mask | (isWall(tankX-1, tankY+1) << 5)
+	mask = mask | (isWall(tankX, tankY+1) << 6)
+	mask = mask | (isWall(tankX+1, tankY+1) << 7)
+	return mask, relative_to_gas_or_star
 
 episode_rewards = []
-RANDOM_START = True
+RANDOM_START = False
+
 for episode in range(TOTAL_EPISODES):
 	grid = copy.deepcopy(init_grid)
 	fuel = FUEL_CAP
@@ -129,8 +141,7 @@ for episode in range(TOTAL_EPISODES):
 			action = np.random.randint(0, 4)
 
 		bad = move(action)
-		bad = False
-
+		
 		if bad:
 			reward = WALL_PENALTY
 		elif grid[tankX][tankY] == '0': # Hit the wall!
@@ -182,7 +193,10 @@ for episode in range(TOTAL_EPISODES):
 			break
 	
 	episode_rewards.append(total_reward)
-	epsilon *= EPS_DECAY
+	# if END_EPSILON_DECAYING >= episode >= START_EPSILON_DECAYING:
+	# 	epsilon -= epsilon_decay_value
+	if epsilon > 0.1: 
+		epsilon -= (1/TOTAL_EPISODES)
 
 linear_avg = np.convolve(episode_rewards, np.ones((DISPLAY_EVERY,)) / DISPLAY_EVERY, mode='valid')
 
